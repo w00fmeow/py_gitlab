@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from src.http_service import HttpService
 from src.logger import logger
 from src.utils import string_contains_user_mention

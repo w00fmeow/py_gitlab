@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import asyncio
 import logging
 from argparse import ArgumentParser
@@ -69,10 +70,6 @@ async def main():
 
     except Exception as e:
         logger.error(e)
-
-    # finally:
-    # TODO close all sessions
-    #     await session.close()
 
 
 asyncio.run(main())

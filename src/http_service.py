@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import asyncio
 import aiohttp
 from requests.structures import CaseInsensitiveDict
@@ -7,16 +8,14 @@ semaphore = asyncio.Semaphore(value=10)
 
 
 class HttpService:
-    def __init__(self, session=None, headers=CaseInsensitiveDict()):
+    def __init__(self, headers=CaseInsensitiveDict()):
         self.headers = headers
         # TODO pick random
         self.headers["User-Agent"] = "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.5; en-US; rv:1.9.0.5) Gecko/2008120121 Firefox/3.0.54"
 
-        self.session = session if session else aiohttp.ClientSession(
-            headers=self.headers)
-
     async def request(self, url=None, query_params={}, json_body=None, method="GET"):
         await semaphore.acquire()
+        session = aiohttp.ClientSession(headers=self.headers)
         result = None
         try:
             query_params_array = [(k, query_params[k])
@@ -30,25 +29,30 @@ class HttpService:
 
             response = None
             if method == "GET":
-                response = await self.session.get(**request_kargs)
+                response = await session.get(**request_kargs)
             elif method == 'POST':
-                response = await self.session.post(**request_kargs)
+                response = await session.post(**request_kargs)
             elif method == 'PUT':
-                response = await self.session.put(**request_kargs)
+                response = await session.put(**request_kargs)
             elif method == 'PATCH':
-                response = await self.session.put(**request_kargs)
+                response = await session.patch(**request_kargs)
             else:
+                semaphore.release()
+                await session.close()
                 raise Exception(f"Unkown request method: {method}")
 
             logger.debug(response.url)
             if response:
                 result = await response.json()
             else:
+                await session.close()
+                semaphore.release()
                 raise Exception("Got empty response")
 
         except Exception as e:
             logger.error(e)
 
+        await session.close()
         semaphore.release()
         return result
 

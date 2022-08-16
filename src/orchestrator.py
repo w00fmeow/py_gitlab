@@ -1,12 +1,12 @@
-import json
-import re
+#!/usr/bin/env python3
 import asyncio
 import hashlib
 from random import randint
 from src.logger import logger
-from src.utils import escape_char_in_str, retry_on_fail, string_contains_user_mention
+from src.utils import retry_on_fail
 from src.http_service import HttpService
 from src.gitlab_api import GitlabApi
+from src.telegram_service import TelegramService
 
 
 DEFAULT_LABELS = [
@@ -28,22 +28,12 @@ def get_notes_hash(notes=[]):
     return md5_hash
 
 
-def format_note_message(mr=None, note=None):
-    title_escaped = escape_char_in_str(
-        input_str=mr['title'], char_to_escape='-')
-    url_formatted = f"[{title_escaped}]({mr['web_url']})"
-    title = f"[ gitlab ]: new comment on MR:\n{url_formatted}"
-    body = f"_{note['body']}_"
-    footer = f"🗒 by {note['author']['name']}"
-    return f"{title}\n\n{body}\n\n{footer}"
-
-
 class Orchestrator:
     def __init__(self, gitlab_token=None, telegram_chat_id=None, telegram_token=None):
         self.gitlab_api = GitlabApi(token=gitlab_token)
-        # TODO refactor telegram calls
-        self.telegram_chat_id = telegram_chat_id
-        self.telegram_token = telegram_token
+        self.telegram_service = TelegramService(
+            chat_id=telegram_chat_id, token=telegram_token)
+
         self.http_service = HttpService()
 
     def get_changed_notes(self, new_mr={}, old_mr={"note_groups": {}}):
@@ -103,22 +93,6 @@ class Orchestrator:
 
         return diffs
 
-    async def telegram_notify_note(self, note=None, mr=None):
-        url = f"https://api.telegram.org/{self.telegram_token}/sendMessage"
-        json_payload = {
-            "text": format_note_message(note=note, mr=mr),
-            "chat_id": self.telegram_chat_id,
-            "parse_mode": "MarkdownV2"
-        }
-
-        logger.debug(json.dumps(json_payload, indent=2))
-
-        try:
-            res = await self.http_service.post(url=url, json_body=json_payload)
-            logger.debug(res)
-        except Exception as e:
-            logger.error(e)
-
     async def log_merge_requests_without_comments(self):
         all_merge_requests = await self.gitlab_api.get_merge_requests()
         merge_requests_without_comments = [
@@ -167,11 +141,11 @@ class Orchestrator:
             notes = diff["notes"]
 
             for note in notes:
-                await self.telegram_notify_note(note=note, mr=mr)
+                await self.telegram_service.send_note_notify(note=note, mr=mr)
 
     @retry_on_fail
-    async def wait_for_comments(self, project_ids=[], chat_id=None):
-        current_user = await self.gitlab_api.get_current_user()
+    async def wait_for_comments(self, project_ids=[]):
+        await self.gitlab_api.get_current_user()
 
         all_merge_requests = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
 
