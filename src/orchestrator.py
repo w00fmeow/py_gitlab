@@ -4,7 +4,6 @@ import hashlib
 from random import randint
 from src.logger import logger
 from src.utils import retry_on_fail
-from src.http_service import HttpService
 from src.gitlab_api import GitlabApi
 from src.telegram_service import TelegramService
 
@@ -33,8 +32,6 @@ class Orchestrator:
         self.gitlab_api = GitlabApi(token=gitlab_token)
         self.telegram_service = TelegramService(
             chat_id=telegram_chat_id, token=telegram_token)
-
-        self.http_service = HttpService()
 
     def get_changed_notes(self, new_mr={}, old_mr={"note_groups": {}}):
         diffs = []
