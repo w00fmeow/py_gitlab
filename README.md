@@ -16,6 +16,8 @@ I wanted to get notifications right away to telegram.
 
 when passing `--watch_comments` flag the script will poll all relevant to current user merge requests, when there is a new comment available there will be a telegram notification with details.
 
+![Message demo](./assets/message-demo.png?raw=true "Message demo")
+
 ### Merge request labels
 
 In our company we work in squads, so on our project work multiple teams. On each daily we wanted to go over all opened merge requests by only our team members. In UI there is no option to filter merge requests by multiple users.
@@ -61,4 +63,15 @@ options:
                         telegram api token
   --chat_id CHAT_ID     telegram chat id
 
+```
+
+Example with arguments:
+
+```
+$ py_gitlab --token KOEQhX1TKIqLErlqvpWL \
+        --watch_comments=1 \
+        --merge_requests_labels="Some label,Another One" \
+        --telegram_token=bot123456789:rXrTYcXFbOqc21Pfl-nngNEcVkEQ5NJOOlg \
+        --project_ids="123,654" \
+        --chat_id=123456789
 ```
