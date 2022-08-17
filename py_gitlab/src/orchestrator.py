@@ -8,11 +8,6 @@ from src.gitlab_api import GitlabApi
 from src.telegram_service import TelegramService
 
 
-DEFAULT_LABELS = [
-    "Self Service Squad"
-]
-
-
 def get_notes_hash(notes=[]):
     notes_hashes = []
 
@@ -28,10 +23,15 @@ def get_notes_hash(notes=[]):
 
 
 class Orchestrator:
-    def __init__(self, gitlab_token=None, telegram_chat_id=None, telegram_token=None):
+    def __init__(self,
+                 gitlab_token=None,
+                 telegram_chat_id=None,
+                 telegram_token=None,
+                 merge_requests_labels=[]):
         self.gitlab_api = GitlabApi(token=gitlab_token)
         self.telegram_service = TelegramService(
             chat_id=telegram_chat_id, token=telegram_token)
+        self.merge_requests_labels = merge_requests_labels
 
     def get_changed_notes(self, new_mr={}, old_mr={"note_groups": {}}):
         diffs = []
@@ -182,10 +182,10 @@ class Orchestrator:
             missing_labels = []
 
             if "labels" not in mr:
-                missing_labels = DEFAULT_LABELS
+                missing_labels = self.merge_requests_labels
             else:
                 missing_labels = [
-                    default_label for default_label in DEFAULT_LABELS if default_label not in mr["labels"]]
+                    default_label for default_label in self.merge_requests_labels if default_label not in mr["labels"]]
 
             if missing_labels:
                 logger.info(

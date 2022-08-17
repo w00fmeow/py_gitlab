@@ -3,7 +3,7 @@ import asyncio
 import logging
 from argparse import ArgumentParser
 from src.orchestrator import Orchestrator
-from src.utils import parse_string_of_integers_to_list
+from src.utils import parse_string_of_integers_to_list, parse_string_of_strings_to_list
 
 
 logging.basicConfig(level=logging.DEBUG,
@@ -23,8 +23,8 @@ parser.add_argument("-t", '--token', type=str,
 parser.add_argument("-m", '--merge_requests', type=bool, default=False,
                     help='Check merge requests that are opened by current user', required=False)
 
-parser.add_argument("-l", '--merge_requests_labels', type=bool, default=False,
-                    help='Ensure default labels are applied to all mrs', required=False)
+parser.add_argument("-l", '--merge_requests_labels', type=parse_string_of_strings_to_list, default=False,
+                    help='Ensure labels are applied to all user merge requests', required=False)
 
 parser.add_argument("-w", '--watch_comments', type=bool, default=False,
                     help='Wait for new comments on any merge request user is associated with', required=False)
@@ -44,11 +44,14 @@ parser.add_argument('--chat_id', type=str,
 args = parser.parse_args()
 
 
-async def main():
+async def run():
     tasks = []
 
     orchestrator = Orchestrator(
-        gitlab_token=args.token, telegram_chat_id=args.chat_id, telegram_token=args.telegram_token)
+        gitlab_token=args.token,
+        telegram_chat_id=args.chat_id,
+        telegram_token=args.telegram_token,
+        merge_requests_labels=args.merge_requests_labels)
 
     try:
         if args.merge_requests:
@@ -72,4 +75,5 @@ async def main():
         logger.error(e)
 
 
-asyncio.run(main())
+def main():
+    asyncio.run(run())

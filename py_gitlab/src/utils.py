@@ -46,3 +46,10 @@ def parse_string_of_integers_to_list(input: str) -> List[int]:
         return [int(x) for x in input.split(',')]
     except Exception as e:
         logger.error(e)
+
+
+def parse_string_of_strings_to_list(input: str) -> List[str]:
+    try:
+        return input.split(',')
+    except Exception as e:
+        logger.error(e)

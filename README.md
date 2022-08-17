@@ -25,3 +25,40 @@ Cheap solution for this is to apply label to each merge request that was opened 
 `--merge_requests_labels` argument will launch loop to apply labels on all merge request opened by current user if some are missing.
 
 When I open merge requests labels are applied as script runs in background and constantly checks the mrs.
+
+## Installation
+
+run from project dir:
+
+```
+$ python3 -m pip install -e ./
+```
+
+## Running
+
+```
+$ py_gitlab --help
+usage: py_gitlab [-h] -t TOKEN [-m MERGE_REQUESTS] [-l MERGE_REQUESTS_LABELS] [-w WATCH_COMMENTS]
+                 [--project_ids PROJECT_IDS] [-d DEBUG] --telegram_token TELEGRAM_TOKEN --chat_id CHAT_ID
+
+Gitlab cli
+
+options:
+  -h, --help            show this help message and exit
+  -t TOKEN, --token TOKEN
+                        private token for auth
+  -m MERGE_REQUESTS, --merge_requests MERGE_REQUESTS
+                        Check merge requests that are opened by current user
+  -l MERGE_REQUESTS_LABELS, --merge_requests_labels MERGE_REQUESTS_LABELS
+                        Ensure labels are applied to all user merge requests
+  -w WATCH_COMMENTS, --watch_comments WATCH_COMMENTS
+                        Wait for new comments on any merge request user is associated with
+  --project_ids PROJECT_IDS
+                        Project IDs to look at when fetching comments
+  -d DEBUG, --debug DEBUG
+                        Enable debuging
+  --telegram_token TELEGRAM_TOKEN
+                        telegram api token
+  --chat_id CHAT_ID     telegram chat id
+
+```

@@ -41,6 +41,8 @@ class GitlabApi:
 
     async def get_merge_requests_relevant_to_user(self, project_ids=[]):
         all_mrs = []
+        # TODO: /merge_requests&scope=all returns 500.
+        # https://gitlab.com/gitlab-org/gitlab/-/issues/342405
         for project_id in project_ids:
             project_merge_requests = await self.get_merge_requests(project_id=project_id, scope="all")
 
