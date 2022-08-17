@@ -13,7 +13,7 @@ class HttpService:
         # TODO pick random
         self.headers["User-Agent"] = "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.5; en-US; rv:1.9.0.5) Gecko/2008120121 Firefox/3.0.54"
 
-    async def request(self, url=None, query_params={}, json_body=None, method="GET"):
+    async def __request(self, url=None, query_params={}, json_body=None, method="GET"):
         await semaphore.acquire()
         session = aiohttp.ClientSession(headers=self.headers)
         result = None
@@ -57,20 +57,20 @@ class HttpService:
         return result
 
     async def get(self, url=None, query_params={}):
-        result = await self.request(url=url, query_params=query_params, method="GET")
+        result = await self.__request(url=url, query_params=query_params, method="GET")
         return result
 
     async def post(self, url=None, query_params={}, json_body=None):
-        result = self.request(url=url, query_params=query_params,
-                              json_body=json_body, method="POST")
+        result = self.__request(url=url, query_params=query_params,
+                                json_body=json_body, method="POST")
         return result
 
     async def patch(self, url=None, query_params={}, json_body=None):
-        result = self.request(url=url, query_params=query_params,
-                              json_body=json_body, method="PATCH")
+        result = self.__request(url=url, query_params=query_params,
+                                json_body=json_body, method="PATCH")
         return result
 
     async def put(self, url=None, query_params={}, json_body=None):
-        result = self.request(
+        result = self.__request(
             url=url, query_params=query_params, json_body=json_body, method="PUT")
         return result
