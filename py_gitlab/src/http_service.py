@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 import asyncio
 import aiohttp
-from requests.structures import CaseInsensitiveDict
 from src.logger import logger
 
 semaphore = asyncio.Semaphore(value=10)
 
 
 class HttpService:
-    def __init__(self, headers=CaseInsensitiveDict()):
-        self.headers = headers
+    def __init__(self, headers=None):
+        self.headers = headers if headers else {}
         # TODO pick random
         self.headers["User-Agent"] = "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.5; en-US; rv:1.9.0.5) Gecko/2008120121 Firefox/3.0.54"
 

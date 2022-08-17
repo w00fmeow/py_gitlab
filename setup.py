@@ -6,7 +6,6 @@ setup(
     package_dir={"": "py_gitlab"},
     install_requires=[
         'asyncio == 3.4.3',
-        'requests == 2.27.1',
         'aiohttp == 3.8.1',
     ],
     entry_points={
