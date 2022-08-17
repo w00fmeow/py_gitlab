@@ -3,19 +3,18 @@ from src.http_service import HttpService
 from src.logger import logger
 from src.utils import string_contains_user_mention
 
-GITLAB_HOST = "https://gitlab.com"
-GITLAB_BASE_URL = f"{GITLAB_HOST}/api/v4"
+GITLAB_API_PATH = "api/v4"
 
 
 class GitlabApi:
-    def __init__(self, token=None):
+    def __init__(self, token=None, domain="gitlab.com"):
         self.token = token
 
         self.http_service = HttpService(headers={
             "Private-Token": self.token
         })
 
-        self.base_url = GITLAB_BASE_URL
+        self.base_url = f"https://{domain}/{GITLAB_API_PATH}"
 
         self.current_user = None
 

@@ -53,3 +53,12 @@ def parse_string_of_strings_to_list(input: str) -> List[str]:
         return input.split(',')
     except Exception as e:
         logger.error(e)
+
+
+def parse_string_to_domain(input: str) -> str:
+    try:
+        pattern = "(?:http(s)?://)?(?P<domain>\w+\.\w+)((/)?.*)?"
+        result = re.match(pattern, input)
+        return result.group("domain")
+    except Exception as e:
+        logger.error(e)

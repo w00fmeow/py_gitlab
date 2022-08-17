@@ -45,8 +45,6 @@ class HttpService:
             if response:
                 result = await response.json()
             else:
-                await session.close()
-                semaphore.release()
                 raise Exception("Got empty response")
 
         except Exception as e:
@@ -61,16 +59,16 @@ class HttpService:
         return result
 
     async def post(self, url=None, query_params={}, json_body=None):
-        result = self.__request(url=url, query_params=query_params,
-                                json_body=json_body, method="POST")
+        result = await self.__request(url=url, query_params=query_params,
+                                      json_body=json_body, method="POST")
         return result
 
     async def patch(self, url=None, query_params={}, json_body=None):
-        result = self.__request(url=url, query_params=query_params,
-                                json_body=json_body, method="PATCH")
+        result = await self.__request(url=url, query_params=query_params,
+                                      json_body=json_body, method="PATCH")
         return result
 
     async def put(self, url=None, query_params={}, json_body=None):
-        result = self.__request(
+        result = await self.__request(
             url=url, query_params=query_params, json_body=json_body, method="PUT")
         return result

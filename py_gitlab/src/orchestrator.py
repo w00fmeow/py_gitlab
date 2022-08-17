@@ -27,10 +27,13 @@ class Orchestrator:
                  gitlab_token=None,
                  telegram_chat_id=None,
                  telegram_token=None,
-                 merge_requests_labels=[]):
-        self.gitlab_api = GitlabApi(token=gitlab_token)
+                 merge_requests_labels=[],
+                 gitlab_domain=None):
+        self.gitlab_api = GitlabApi(token=gitlab_token, domain=gitlab_domain)
+
         self.telegram_service = TelegramService(
             chat_id=telegram_chat_id, token=telegram_token)
+
         self.merge_requests_labels = merge_requests_labels
 
     def get_changed_notes(self, new_mr={}, old_mr={"note_groups": {}}):

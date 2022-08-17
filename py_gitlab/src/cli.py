@@ -3,7 +3,7 @@ import asyncio
 import logging
 from argparse import ArgumentParser
 from src.orchestrator import Orchestrator
-from src.utils import parse_string_of_integers_to_list, parse_string_of_strings_to_list
+from src.utils import parse_string_of_integers_to_list, parse_string_of_strings_to_list, parse_string_to_domain
 
 
 logging.basicConfig(level=logging.DEBUG,
@@ -18,7 +18,10 @@ logger.addHandler(file_handler)
 parser = ArgumentParser(description='Gitlab cli')
 
 parser.add_argument("-t", '--token', type=str,
-                    help='private token for auth', required=True)
+                    help='Gitlab private token for auth', required=True)
+
+parser.add_argument('--gitlab_domain', type=parse_string_to_domain, default="gitlab.com",
+                    help='Custom gitlab domain', required=False)
 
 parser.add_argument("-m", '--merge_requests', type=bool, default=False,
                     help='Check merge requests that are opened by current user', required=False)
@@ -51,7 +54,8 @@ async def run():
         gitlab_token=args.token,
         telegram_chat_id=args.chat_id,
         telegram_token=args.telegram_token,
-        merge_requests_labels=args.merge_requests_labels)
+        merge_requests_labels=args.merge_requests_labels,
+        gitlab_domain=args.gitlab_domain)
 
     try:
         if args.merge_requests:

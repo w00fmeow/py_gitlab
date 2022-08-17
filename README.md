@@ -40,7 +40,7 @@ $ python3 -m pip install -e ./
 
 ```
 $ py_gitlab --help
-usage: py_gitlab [-h] -t TOKEN [-m MERGE_REQUESTS] [-l MERGE_REQUESTS_LABELS] [-w WATCH_COMMENTS]
+usage: py_gitlab [-h] -t TOKEN [--gitlab_domain GITLAB_DOMAIN] [-m MERGE_REQUESTS] [-l MERGE_REQUESTS_LABELS] [-w WATCH_COMMENTS]
                  [--project_ids PROJECT_IDS] [-d DEBUG] --telegram_token TELEGRAM_TOKEN --chat_id CHAT_ID
 
 Gitlab cli
@@ -48,7 +48,9 @@ Gitlab cli
 options:
   -h, --help            show this help message and exit
   -t TOKEN, --token TOKEN
-                        private token for auth
+                        Gitlab private token for auth
+  --gitlab_domain GITLAB_DOMAIN
+                        Custom gitlab domain
   -m MERGE_REQUESTS, --merge_requests MERGE_REQUESTS
                         Check merge requests that are opened by current user
   -l MERGE_REQUESTS_LABELS, --merge_requests_labels MERGE_REQUESTS_LABELS
@@ -62,6 +64,7 @@ options:
   --telegram_token TELEGRAM_TOKEN
                         telegram api token
   --chat_id CHAT_ID     telegram chat id
+
 
 ```
 
