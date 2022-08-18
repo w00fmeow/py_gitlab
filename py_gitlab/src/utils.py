@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import re
+import hashlib
 import asyncio
 from functools import wraps
 from typing import List
@@ -62,3 +63,13 @@ def parse_string_to_domain(input: str) -> str:
         return result.group("domain")
     except Exception as e:
         logger.error(e)
+
+
+def get_notes_hash(notes=[]):
+    hasher = hashlib.md5()
+
+    for note in notes:
+        buf = str(note["id"]).encode()
+        hasher.update(buf)
+
+    return hasher.hexdigest()

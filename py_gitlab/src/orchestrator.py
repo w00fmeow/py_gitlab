@@ -3,23 +3,9 @@ import asyncio
 import hashlib
 from random import randint
 from src.logger import logger
-from src.utils import retry_on_fail
+from src.utils import retry_on_fail, get_notes_hash
 from src.gitlab_api import GitlabApi
 from src.telegram_service import TelegramService
-
-
-def get_notes_hash(notes=[]):
-    notes_hashes = []
-
-    for note in notes:
-        hash = str(note['id'])
-
-        notes_hashes.append(hash)
-
-    blueprint = "".join(notes_hashes)
-    md5_hash = hashlib.md5(blueprint.encode()).hexdigest()
-
-    return md5_hash
 
 
 class Orchestrator:
