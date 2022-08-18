@@ -87,7 +87,7 @@ class Orchestrator:
         for mr in merge_requests_without_comments:
             logger.debug(f"{mr['title']} - {mr['web_url']}")
 
-    async def build_notes_lookup(self, merge_requests=[]):
+    def build_notes_lookup(self, merge_requests=[]):
         mr_lookup = {}
 
         logger.debug("build_notes_lookup")
@@ -102,10 +102,10 @@ class Orchestrator:
                         "ids_set": set(),
                         "hash": None
                     }
-                notes = await self.gitlab_api.get_merge_request_notes(id=mr_id, project_id=mr["source_project_id"])
 
-                diff_notes = [note for note in notes if not note["system"]]
-                for note in diff_notes:
+                non_system_notes = [note for note in mr['notes']
+                                    if not note["system"]]
+                for note in non_system_notes:
 
                     note_position = note["position"]["base_sha"] if note["type"] == 'DiffNote' else note["noteable_id"]
 
@@ -115,7 +115,7 @@ class Orchestrator:
                     mr_lookup[mr_id]["note_groups"][note_position].append(note)
                     mr_lookup[mr_id]["ids_set"].add(note["id"])
 
-                group_hash = get_notes_hash(notes=diff_notes)
+                group_hash = get_notes_hash(notes=non_system_notes)
 
                 mr_lookup[mr_id]["hash"] = group_hash
 
@@ -135,7 +135,8 @@ class Orchestrator:
 
         all_merge_requests = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
 
-        prev_mrs_lookup = await self.build_notes_lookup(merge_requests=all_merge_requests)
+        prev_mrs_lookup = self.build_notes_lookup(
+            merge_requests=all_merge_requests)
 
         should_stop = False
 
@@ -143,7 +144,8 @@ class Orchestrator:
             try:
                 new_merge_requests = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
 
-                fresh_mr_lookup = await self.build_notes_lookup(merge_requests=new_merge_requests)
+                fresh_mr_lookup = self.build_notes_lookup(
+                    merge_requests=new_merge_requests)
 
                 diff_notes = self.get_diff_notes(
                     new_lookup_table=fresh_mr_lookup, old_lookup_table=prev_mrs_lookup)

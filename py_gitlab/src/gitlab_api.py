@@ -59,6 +59,7 @@ class GitlabApi:
 
                     for note in notes:
                         if note["author"]["id"] == self.current_user["id"] or string_contains_user_mention(note['body'], self.current_user["username"]):
+                            mr["notes"] = notes
                             all_mrs.append(mr)
                             break
 
