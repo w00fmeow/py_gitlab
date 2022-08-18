@@ -46,22 +46,27 @@ class GitlabApi:
             project_merge_requests = await self.get_merge_requests(project_id=project_id, scope="all")
 
             for mr in project_merge_requests:
+                is_relevant = False
+
                 if mr["user_notes_count"]:
 
                     if mr["author"]["id"] == self.current_user["id"]:
                         logger.debug(
                             f"MR is relevant for user as he is the author: {mr['title']}")
-
-                        all_mrs.append(mr)
-                        break
+                        is_relevant = True
 
                     notes = await self.get_merge_request_notes(id=mr['iid'], project_id=mr["source_project_id"])
+                    mr["notes"] = notes if notes else []
 
-                    for note in notes:
-                        if note["author"]["id"] == self.current_user["id"] or string_contains_user_mention(note['body'], self.current_user["username"]):
-                            mr["notes"] = notes
-                            all_mrs.append(mr)
+                    for note in mr["notes"]:
+                        if not note["system"] and note["author"]["id"] == self.current_user["id"] or string_contains_user_mention(note['body'], self.current_user["username"]):
+                            logger.debug(
+                                f"MR is relevant for user as there are relevant comments : {mr['title']}")
+                            is_relevant = True
                             break
+
+                if is_relevant:
+                    all_mrs.append(mr)
 
         return all_mrs
 

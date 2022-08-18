@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
-import hashlib
+import json
+from datetime import datetime
 from random import randint
 from src.logger import logger
 from src.utils import retry_on_fail, get_notes_hash
@@ -9,6 +10,8 @@ from src.telegram_service import TelegramService
 
 
 class Orchestrator:
+    MRS_DB_PATH = '.merge_requests_db'
+
     def __init__(self,
                  gitlab_token=None,
                  telegram_chat_id=None,
@@ -102,7 +105,6 @@ class Orchestrator:
                         "ids_set": set(),
                         "hash": None
                     }
-
                 non_system_notes = [note for note in mr['notes']
                                     if not note["system"]]
                 for note in non_system_notes:
@@ -129,11 +131,49 @@ class Orchestrator:
             for note in notes:
                 await self.telegram_service.send_note_notify(note=note, mr=mr)
 
+    async def fetch_and_save_relevant_merge_requests(self, project_ids=None):
+        merge_requests = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
+
+        db_object = {
+            "project_ids": project_ids,
+            "merge_requests": merge_requests,
+            "date": str(datetime.now())
+        }
+
+        with open(self.MRS_DB_PATH, '+w', encoding="utf-8") as f:
+            f.write(json.dumps(db_object))
+            logger.info(f"Saved mrs to {self.MRS_DB_PATH} file")
+
+        return merge_requests
+
+    async def load_relevant_merge_requests_with_fallback(self, project_ids=None):
+        merge_requests = None
+        try:
+            last_loaded_merge_requests_dump = json.loads(
+                open(self.MRS_DB_PATH, 'r', encoding="utf-8").read())
+
+            if all([project_id in set(last_loaded_merge_requests_dump["project_ids"]) for project_id in project_ids]):
+                logger.info(
+                    f"Using merge requests loaded from {last_loaded_merge_requests_dump['date']}")
+
+                merge_requests = last_loaded_merge_requests_dump["merge_requests"]
+        except Exception as e:
+            logger.error(e)
+
+        if not merge_requests:
+            logger.debug(
+                "Failed to load previously loaded merge requests. Fetching from API again")
+
+            return await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
+
+        return merge_requests
+
     @retry_on_fail
     async def wait_for_comments(self, project_ids=[]):
         await self.gitlab_api.get_current_user()
 
-        all_merge_requests = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
+        all_merge_requests = await self.load_relevant_merge_requests_with_fallback(
+            project_ids=project_ids)
 
         prev_mrs_lookup = self.build_notes_lookup(
             merge_requests=all_merge_requests)
@@ -142,7 +182,7 @@ class Orchestrator:
 
         while not should_stop:
             try:
-                new_merge_requests = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
+                new_merge_requests = await self.fetch_and_save_relevant_merge_requests(project_ids=project_ids)
 
                 fresh_mr_lookup = self.build_notes_lookup(
                     merge_requests=new_merge_requests)
