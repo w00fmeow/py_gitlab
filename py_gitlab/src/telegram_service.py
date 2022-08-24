@@ -8,10 +8,14 @@ from src.utils import escape_chars_in_str
 def format_note_message(mr=None, note=None):
     title_escaped = escape_chars_in_str(
         input_str=mr['title'], chars_to_escape=['-', '+', "_", "*", "[", "`"])
-    url_formatted = f"[{title_escaped}]({mr['web_url']})"
+
+    note_url = f"{mr['web_url']}#note_{note['id']}"
+    url_formatted = f"[{title_escaped}]({note_url})"
+
     title = f"[ gitlab ]: new comment on MR:\n{url_formatted}"
     body = f"_{note['body']}_"
     footer = f"🗒 by {note['author']['name']}"
+
     return f"{title}\n\n{body}\n\n{footer}"
 
 
