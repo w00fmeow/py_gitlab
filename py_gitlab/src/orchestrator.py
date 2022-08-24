@@ -7,10 +7,11 @@ from src.logger import logger
 from src.utils import retry_on_fail, get_notes_hash
 from src.gitlab_api import GitlabApi
 from src.telegram_service import TelegramService
+from src.config import PROJECT_DIR
 
 
 class Orchestrator:
-    MRS_DB_PATH = '.merge_requests_db'
+    MRS_DB_PATH = f'{PROJECT_DIR}/db'
 
     def __init__(self,
                  gitlab_token=None,
@@ -82,6 +83,7 @@ class Orchestrator:
 
         return diffs
 
+    @retry_on_fail
     async def log_merge_requests_without_comments(self):
         all_merge_requests = await self.gitlab_api.get_merge_requests()
         merge_requests_without_comments = [
@@ -205,7 +207,6 @@ class Orchestrator:
             except Exception as e:
                 logger.error(e)
 
-    @retry_on_fail
     async def ensure_default_labels_exist_on_mrs(self):
         logger.debug("Checking if all mrs have default labels")
         mrs = await self.gitlab_api.get_merge_requests()
@@ -224,6 +225,7 @@ class Orchestrator:
                 labels_for_update = list(set(mr['labels'] + missing_labels))
                 await self.gitlab_api.update_mr_labels(labels=labels_for_update, iid=mr["iid"], project_id=mr["project_id"])
 
+    @retry_on_fail
     async def ensure_default_labels_loop(self):
         while True:
             await self.ensure_default_labels_exist_on_mrs()

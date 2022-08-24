@@ -2,12 +2,12 @@
 import json
 from src.http_service import HttpService
 from src.logger import logger
-from src.utils import escape_char_in_str
+from src.utils import escape_chars_in_str
 
 
 def format_note_message(mr=None, note=None):
-    title_escaped = escape_char_in_str(
-        input_str=mr['title'], char_to_escape='-')
+    title_escaped = escape_chars_in_str(
+        input_str=mr['title'], chars_to_escape=['-', '+', "_", "*", "[", "`"])
     url_formatted = f"[{title_escaped}]({mr['web_url']})"
     title = f"[ gitlab ]: new comment on MR:\n{url_formatted}"
     body = f"_{note['body']}_"
