@@ -255,6 +255,7 @@ class Orchestrator:
                     updated_assignees_ids = list(assignees_ids_set)
 
                     await self.gitlab_api.update_mr_assignee_ids(iid=mr["iid"], project_id=mr["project_id"], assignee_ids=updated_assignees_ids)
+                    await self.gitlab_api.unsubscribe_from_mr(iid=mr["iid"], project_id=mr["project_id"])
 
     @retry_on_fail
     async def unassign_from_mrs_loop(self, project_ids=[]):

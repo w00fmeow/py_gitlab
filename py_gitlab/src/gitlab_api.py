@@ -112,3 +112,13 @@ class GitlabApi:
         logger.info(
             f"Updated assignees for mr: {iid}. updated assignee_ids: {assignee_ids}")
         return result
+
+    async def unsubscribe_from_mr(self, iid=None, project_id=None):
+
+        url = f"{self.base_url}/projects/{project_id}/merge_requests/{iid}/unsubscribe"
+
+        result = await self.http_service.post(url=url)
+
+        logger.info(
+            f"Unsubscribed from mr : {iid}.")
+        return result
