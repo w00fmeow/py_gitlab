@@ -44,6 +44,10 @@ parser.add_argument('--telegram_token', type=str,
 parser.add_argument('--chat_id', type=str,
                     help='telegram chat id', required=True)
 
+parser.add_argument("-u", '--unassign', type=bool, default=False,
+                    help='Unassign current user from merge requests with multiple assignees', required=False)
+
+
 args = parser.parse_args()
 
 
@@ -71,6 +75,11 @@ async def run():
         if args.watch_comments and args.project_ids:
             logger.info("Waiting for merge requests comments")
             tasks.append(orchestrator.wait_for_comments(
+                project_ids=args.project_ids))
+
+        if args.unassign and args.project_ids:
+            logger.info("Unassigning user from not relevant merge requests")
+            tasks.append(orchestrator.unassign_from_mrs_loop(
                 project_ids=args.project_ids))
 
         await asyncio.gather(*tasks)

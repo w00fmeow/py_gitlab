@@ -235,3 +235,36 @@ class Orchestrator:
                 f"Sleeping in ensure_default_labels_loop for : {sleep_in_sec} sec")
 
             await asyncio.sleep(sleep_in_sec)
+
+    async def unassign_from_mrs(self, project_ids=[], current_user=None):
+        logger.debug(
+            "Checking if user is assigned to not relevant merge requests")
+
+        mrs = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
+
+        for mr in mrs:
+            if len(mr["assignees"]) > 1:
+                assignees_ids_set = set([assignee['id']
+                                        for assignee in mr["assignees"]])
+                if current_user['id'] in assignees_ids_set and not self.gitlab_api.user_has_notes_in_mr(mr=mr, user=current_user):
+                    logger.debug(
+                        f"Removing current user from mr assignees: {mr['title']}")
+
+                    assignees_ids_set.remove(current_user['id'])
+
+                    updated_assignees_ids = list(assignees_ids_set)
+
+                    await self.gitlab_api.update_mr_assignee_ids(iid=mr["iid"], project_id=mr["project_id"], assignee_ids=updated_assignees_ids)
+
+    @retry_on_fail
+    async def unassign_from_mrs_loop(self, project_ids=[]):
+        current_user = await self.gitlab_api.get_current_user()
+
+        while True:
+            await self.unassign_from_mrs(project_ids=project_ids, current_user=current_user)
+            sleep_in_sec = randint(50, 120)
+
+            logger.debug(
+                f"Sleeping in unassign_from_mrs_loop for : {sleep_in_sec} sec")
+
+            await asyncio.sleep(sleep_in_sec)

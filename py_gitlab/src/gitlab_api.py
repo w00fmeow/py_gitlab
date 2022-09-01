@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 from src.http_service import HttpService
 from src.logger import logger
 from src.utils import string_contains_user_mention
@@ -32,43 +33,62 @@ class GitlabApi:
         return merge_requests
 
     async def get_current_user(self):
-        url = f"{self.base_url}/user"
+        if not self.current_user:
+            url = f"{self.base_url}/user"
 
-        user = await self.http_service.get(url=url)
-        self.current_user = user
-        return user
+            user = await self.http_service.get(url=url)
+            self.current_user = user
+        return self.current_user
 
-    async def get_merge_requests_relevant_to_user(self, project_ids=[]):
+    async def get_merge_requests_by_project_ids(self, project_ids=[]):
         all_mrs = []
-        # TODO: /merge_requests&scope=all returns 500.
-        # https://gitlab.com/gitlab-org/gitlab/-/issues/342405
+
         for project_id in project_ids:
             project_merge_requests = await self.get_merge_requests(project_id=project_id, scope="all")
 
             for mr in project_merge_requests:
-                is_relevant = False
-
-                if mr["user_notes_count"]:
-
-                    if mr["author"]["id"] == self.current_user["id"]:
-                        logger.debug(
-                            f"MR is relevant for user as he is the author: {mr['title']}")
-                        is_relevant = True
-
-                    notes = await self.get_merge_request_notes(id=mr['iid'], project_id=mr["source_project_id"])
-                    mr["notes"] = notes if notes else []
-
-                    for note in mr["notes"]:
-                        if not note["system"] and note["author"]["id"] == self.current_user["id"] or string_contains_user_mention(note['body'], self.current_user["username"]):
-                            logger.debug(
-                                f"MR is relevant for user as there are relevant comments : {mr['title']}")
-                            is_relevant = True
-                            break
-
-                if is_relevant:
-                    all_mrs.append(mr)
+                all_mrs.append(mr)
 
         return all_mrs
+
+    def user_has_notes_in_mr(self, mr=None, user=None):
+        for note in mr["notes"]:
+            if not note["system"] and note["author"]["id"] == user["id"] or string_contains_user_mention(note['body'], user["username"]):
+                return True
+
+        return False
+
+    async def get_merge_requests_relevant_to_user(self, project_ids=[]):
+        relevant_mrs = []
+        # TODO: /merge_requests&scope=all returns 500.
+        # https://gitlab.com/gitlab-org/gitlab/-/issues/342405
+        mrs = await self.get_merge_requests_by_project_ids(project_ids=project_ids)
+
+        for mr in mrs:
+            is_relevant = False
+
+            mr_assignee_ids_set = set([assignee["id"]
+                                      for assignee in mr["assignees"]])
+
+            if mr["user_notes_count"]:
+                if mr["author"]["id"] == self.current_user["id"]:
+                    is_relevant = True
+
+                notes = await self.get_merge_request_notes(id=mr['iid'], project_id=mr["source_project_id"])
+                mr["notes"] = notes if notes else []
+
+                if self.user_has_notes_in_mr(mr=mr, user=self.current_user):
+                    is_relevant = True
+
+            if self.current_user["id"] in mr_assignee_ids_set:
+                logger.debug(
+                    f"MR is relevant for user as he is in assignees array: {mr['title']}")
+                is_relevant = True
+
+            if is_relevant:
+                relevant_mrs.append(mr)
+
+        return relevant_mrs
 
     async def update_mr_labels(self,  iid=None, project_id=None, labels=[]):
 
@@ -79,4 +99,16 @@ class GitlabApi:
         result = await self.http_service.put(url=url, json_body=json_body)
 
         logger.info(f"Updated labels for mr: {iid}. updated labels: {labels}")
+        return result
+
+    async def update_mr_assignee_ids(self,  iid=None, project_id=None, assignee_ids=[]):
+
+        url = f"{self.base_url}/projects/{project_id}/merge_requests/{iid}"
+
+        json_body = {"assignee_ids": assignee_ids}
+
+        result = await self.http_service.put(url=url, json_body=json_body)
+
+        logger.info(
+            f"Updated assignees for mr: {iid}. updated assignee_ids: {assignee_ids}")
         return result
