@@ -26,15 +26,15 @@ class Orchestrator:
 
         self.merge_requests_labels = merge_requests_labels
 
-    def get_changed_notes(self, new_mr={}, old_mr={"note_groups": {}}):
+    def get_changed_notes(self, new_mr={}, old_mr={"notes_map": {}}):
         diffs = []
         logger.debug("get_changed_notes")
 
-        for group_key in new_mr["note_groups"].keys():
-            if group_key not in old_mr["note_groups"]:
-                diffs.extend(new_mr["note_groups"][group_key])
+        for note_id in new_mr["notes_map"].keys():
+            if note_id not in old_mr["notes_map"]:
+                diffs.append(new_mr["notes_map"][note_id])
             else:
-                for note in new_mr["note_groups"][group_key]:
+                for note in new_mr["notes_map"][note_id]:
                     logger.debug(note["body"])
                     if note["id"] not in old_mr["ids_set"]:
                         diffs.append(note)
@@ -103,7 +103,7 @@ class Orchestrator:
                 if mr_id not in mr_lookup:
                     mr_lookup[mr_id] = {
                         "original_data": mr,
-                        "note_groups": {},
+                        "notes_map": {},
                         "ids_set": set(),
                         "hash": None
                     }
@@ -111,12 +111,12 @@ class Orchestrator:
                                     if not note["system"]]
                 for note in non_system_notes:
 
-                    note_position = note["position"]["base_sha"] if note["type"] == 'DiffNote' else note["noteable_id"]
+                    # note_position = note["position"]["base_sha"] if note["type"] == 'DiffNote' else note["noteable_id"]
 
-                    if note_position not in mr_lookup[mr_id]["note_groups"]:
-                        mr_lookup[mr_id]["note_groups"][note_position] = []
+                    # if note_position not in mr_lookup[mr_id]["note_groups"]:
+                    #     mr_lookup[mr_id]["note_groups"][note_position] = []
 
-                    mr_lookup[mr_id]["note_groups"][note_position].append(note)
+                    mr_lookup[mr_id]["notes_map"][note['id']] = note
                     mr_lookup[mr_id]["ids_set"].add(note["id"])
 
                 group_hash = get_notes_hash(notes=non_system_notes)

@@ -9,11 +9,14 @@ def format_note_message(mr=None, note=None):
     title_escaped = escape_chars_in_str(
         input_str=mr['title'], chars_to_escape=['-', '+', "_", "*", "[", "`", "."])
 
+    body_escaped = escape_chars_in_str(
+        input_str=note['body'], chars_to_escape=['-', '+', "_", "*", "[", "`", "."])
+
     note_url = f"{mr['web_url']}#note_{note['id']}"
     url_formatted = f"[{title_escaped}]({note_url})"
 
     title = f"[ gitlab ]: new comment on MR:\n{url_formatted}"
-    body = f"_{note['body']}_"
+    body = f"_{body_escaped}_"
     footer = f"🗒 by {note['author']['name']}"
 
     return f"{title}\n\n{body}\n\n{footer}"
