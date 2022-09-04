@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import sys
 import json
 from datetime import datetime
 from random import randint
@@ -8,6 +9,8 @@ from src.utils import retry_on_fail, get_notes_hash
 from src.gitlab_api import GitlabApi
 from src.telegram_service import TelegramService
 from src.config import PROJECT_DIR
+
+APPROVED_MR_MESSAGE_BODY = "approved this merge request"
 
 
 class Orchestrator:
@@ -26,18 +29,15 @@ class Orchestrator:
 
         self.merge_requests_labels = merge_requests_labels
 
-    def get_changed_notes(self, new_mr={}, old_mr={"notes_map": {}}):
+    def get_changed_notes(self, new_mr={"notes_map": {}}, old_mr={"notes_map": {}}):
         diffs = []
         logger.debug("get_changed_notes")
 
         for note_id in new_mr["notes_map"].keys():
             if note_id not in old_mr["notes_map"]:
+
+                logger.debug(f"NEW comment: {new_mr['notes_map'][note_id]}")
                 diffs.append(new_mr["notes_map"][note_id])
-            else:
-                for note in new_mr["notes_map"][note_id]:
-                    logger.debug(note["body"])
-                    if note["id"] not in old_mr["ids_set"]:
-                        diffs.append(note)
 
         filtered_notes = [
             note for note in diffs if note["author"]["id"] != self.gitlab_api.current_user["id"]]
@@ -104,22 +104,15 @@ class Orchestrator:
                     mr_lookup[mr_id] = {
                         "original_data": mr,
                         "notes_map": {},
-                        "ids_set": set(),
                         "hash": None
                     }
-                non_system_notes = [note for note in mr['notes']
-                                    if not note["system"]]
-                for note in non_system_notes:
 
-                    # note_position = note["position"]["base_sha"] if note["type"] == 'DiffNote' else note["noteable_id"]
+                for note in mr['notes']:
 
-                    # if note_position not in mr_lookup[mr_id]["note_groups"]:
-                    #     mr_lookup[mr_id]["note_groups"][note_position] = []
+                    note_id = str(note["id"])
+                    mr_lookup[mr_id]["notes_map"][note_id] = note
 
-                    mr_lookup[mr_id]["notes_map"][note['id']] = note
-                    mr_lookup[mr_id]["ids_set"].add(note["id"])
-
-                group_hash = get_notes_hash(notes=non_system_notes)
+                group_hash = get_notes_hash(notes=mr['notes'])
 
                 mr_lookup[mr_id]["hash"] = group_hash
 
@@ -131,7 +124,12 @@ class Orchestrator:
             notes = diff["notes"]
 
             for note in notes:
-                await self.telegram_service.send_note_notify(note=note, mr=mr)
+                if not note["system"]:
+                    await self.telegram_service.send_user_note(note=note, mr=mr)
+                elif note["body"] == APPROVED_MR_MESSAGE_BODY:
+                    await self.telegram_service.send_mr_approved_note_message(note=note, mr=mr)
+                else:
+                    await self.telegram_service.send_system_note_message(note=note, mr=mr)
 
     async def fetch_and_save_relevant_merge_requests(self, project_ids=None):
         merge_requests = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
@@ -192,20 +190,22 @@ class Orchestrator:
                 diff_notes = self.get_diff_notes(
                     new_lookup_table=fresh_mr_lookup, old_lookup_table=prev_mrs_lookup)
                 if diff_notes:
-                    logger.info(f"Got {len(diff_notes)} new comments")
+                    logger.info(
+                        f"Got {len(diff_notes)} merge requests with new comments")
 
                     await self.telegram_notify_notes(diffs=diff_notes)
 
                 prev_mrs_lookup = fresh_mr_lookup
 
-                sleep_in_sec = randint(5, 15)
-
-                logger.debug(
-                    f"Sleeping in wait_for_comments for : {sleep_in_sec} sec")
-
-                await asyncio.sleep(sleep_in_sec)
             except Exception as e:
                 logger.error(e)
+
+            sleep_in_sec = randint(5, 15)
+
+            logger.debug(
+                f"Sleeping in wait_for_comments for : {sleep_in_sec} sec")
+
+            await asyncio.sleep(sleep_in_sec)
 
     async def ensure_default_labels_exist_on_mrs(self):
         logger.debug("Checking if all mrs have default labels")
