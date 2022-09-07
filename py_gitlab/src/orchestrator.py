@@ -243,18 +243,36 @@ class Orchestrator:
         mrs = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
 
         for mr in mrs:
-            if len(mr["assignees"]) > 1:
+            if len(mr["assignees"]) > 1 or len(mr["reviewers"]) > 1:
                 assignees_ids_set = set([assignee['id']
                                         for assignee in mr["assignees"]])
-                if current_user['id'] in assignees_ids_set and not self.gitlab_api.user_has_notes_in_mr(mr=mr, user=current_user):
-                    logger.debug(
-                        f"Removing current user from mr assignees: {mr['title']}")
+                reviewer_ids_set = set([reviewer["id"]
+                                        for reviewer in mr["reviewers"]])
 
-                    assignees_ids_set.remove(current_user['id'])
+                user_is_assignee = current_user['id'] in assignees_ids_set
+                user_is_reviewer = current_user['id'] in reviewer_ids_set
 
-                    updated_assignees_ids = list(assignees_ids_set)
+                if (user_is_assignee or user_is_reviewer) and not self.gitlab_api.user_has_notes_in_mr(mr=mr, user=current_user):
+                    if user_is_assignee:
+                        logger.debug(
+                            f"Removing current user from mr assignees: {mr['title']}")
 
-                    await self.gitlab_api.update_mr_assignee_ids(iid=mr["iid"], project_id=mr["project_id"], assignee_ids=updated_assignees_ids)
+                        assignees_ids_set.remove(current_user['id'])
+
+                        updated_assignees_ids = list(assignees_ids_set)
+
+                        await self.gitlab_api.update_mr_assignee_ids(iid=mr["iid"], project_id=mr["project_id"], assignee_ids=updated_assignees_ids)
+
+                    if user_is_reviewer:
+                        logger.debug(
+                            f"Removing current user from mr reviewers: {mr['title']}")
+
+                        reviewer_ids_set.remove(current_user['id'])
+
+                        updated_reviewer_ids = list(reviewer_ids_set)
+
+                        await self.gitlab_api.update_mr_reviewer_ids(iid=mr["iid"], project_id=mr["project_id"], reviewer_ids=updated_reviewer_ids)
+
                     await self.gitlab_api.unsubscribe_from_mr(iid=mr["iid"], project_id=mr["project_id"])
 
     @retry_on_fail

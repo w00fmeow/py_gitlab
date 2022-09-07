@@ -70,12 +70,17 @@ class GitlabApi:
             mr_assignee_ids_set = set([assignee["id"]
                                       for assignee in mr["assignees"]])
 
+            mr_reviewer_ids_set = set([reviewer["id"]
+                                      for reviewer in mr["reviewers"]])
+            mr["notes"] = []
+
             if mr["user_notes_count"]:
                 if mr["author"]["id"] == self.current_user["id"]:
                     is_relevant = True
 
                 notes = await self.get_merge_request_notes(id=mr['iid'], project_id=mr["source_project_id"])
-                mr["notes"] = notes if notes else []
+                if notes:
+                    mr["notes"] = notes
 
                 if self.user_has_notes_in_mr(mr=mr, user=self.current_user):
                     is_relevant = True
@@ -83,6 +88,11 @@ class GitlabApi:
             if self.current_user["id"] in mr_assignee_ids_set:
                 logger.debug(
                     f"MR is relevant for user as he is in assignees array: {mr['title']}")
+                is_relevant = True
+
+            if self.current_user["id"] in mr_reviewer_ids_set:
+                logger.debug(
+                    f"MR is relevant for user as he is in reviewers array: {mr['title']}")
                 is_relevant = True
 
             if is_relevant:
@@ -111,6 +121,18 @@ class GitlabApi:
 
         logger.info(
             f"Updated assignees for mr: {iid}. updated assignee_ids: {assignee_ids}")
+        return result
+
+    async def update_mr_reviewer_ids(self,  iid=None, project_id=None, reviewer_ids=[]):
+
+        url = f"{self.base_url}/projects/{project_id}/merge_requests/{iid}"
+
+        json_body = {"reviewer_ids": reviewer_ids}
+
+        result = await self.http_service.put(url=url, json_body=json_body)
+
+        logger.info(
+            f"Updated reviewers for mr: {iid}. updated reviewer_ids: {reviewer_ids}")
         return result
 
     async def unsubscribe_from_mr(self, iid=None, project_id=None):
