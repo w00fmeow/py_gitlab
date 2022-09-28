@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 from src.http_service import HttpService
 from src.logger import logger
 from src.utils import string_contains_user_mention
@@ -19,10 +18,11 @@ class GitlabApi:
 
         self.current_user = None
 
-    async def get_merge_requests(self, scope="created_by_me", project_id=None):
+    async def get_merge_requests(self, scope="created_by_me", project_id=None, with_merge_status_recheck='true'):
         url = f"{self.base_url}/merge_requests" if not project_id else f"{self.base_url}/projects/{project_id}/merge_requests"
 
-        query_params = {"scope": scope, "state": "opened", "wip": "no"}
+        query_params = {"scope": scope, "state": "opened", "wip": "no",
+                        "with_merge_status_recheck": with_merge_status_recheck}
         all_merge_requests = await self.http_service.get(url=url, query_params=query_params)
         return all_merge_requests
 
