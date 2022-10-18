@@ -25,7 +25,9 @@ class Orchestrator:
         self.gitlab_api = GitlabApi(token=gitlab_token, domain=gitlab_domain)
 
         self.telegram_service = TelegramService(
-            chat_id=telegram_chat_id, token=telegram_token)
+            chat_id=telegram_chat_id,
+            token=telegram_token,
+            unassign_from_mr_callback=self.on_unassign_mr_decision)
 
         self.merge_requests_labels = merge_requests_labels
 
@@ -236,51 +238,100 @@ class Orchestrator:
 
             await asyncio.sleep(sleep_in_sec)
 
-    async def unassign_from_mrs(self, project_ids=[], current_user=None):
+    async def on_unassign_mr_decision(self, mr_id=None, project_id=None, decision=None, message=None):
+        logger.info(f"on_unassign_mr_decision decision: {decision}")
+        current_user = await self.gitlab_api.get_current_user()
+
+        message_id = message["message_id"]
+
+        await self.telegram_service.remove_reply_markup_from_message(message_id=message_id)
+
+        if decision:
+            mrs = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=[project_id])
+
+            for mr in mrs:
+                if mr["iid"] == mr_id:
+                    result = self.mr_should_be_unassigned_from(
+                        mr=mr, user=current_user)
+
+                    if result:
+                        if "assignee_ids" in result:
+                            logger.info(
+                                f"Removing user from mr assignees in MR: {mr['iid']}")
+                            await self.gitlab_api.update_mr_assignee_ids(iid=mr["iid"], project_id=mr["project_id"], assignee_ids=result["assignee_ids"])
+
+                        if "reviewer_ids" in result:
+                            logger.info(
+                                f"Removing user from reviewers in MR: {mr['iid']}")
+                            await self.gitlab_api.update_mr_reviewer_ids(iid=mr["iid"], project_id=mr["project_id"], reviewer_ids=result["reviewer_ids"])
+
+                        await self.gitlab_api.unsubscribe_from_mr(iid=mr["iid"], project_id=mr["project_id"])
+                        logger.info(f"Unsubscribed from MR: {mr['iid']}")
+
+                        await self.telegram_service.unassign_from_mr_success(message_id=message_id)
+
+                    break
+
+    def mr_should_be_unassigned_from(self, mr=None, user=None):
+        result = None
+        if len(mr["assignees"]) > 1 or len(mr["reviewers"]) > 1:
+            result = {}
+
+            assignees_ids_set = set([assignee['id']
+                                    for assignee in mr["assignees"]])
+            reviewer_ids_set = set([reviewer["id"]
+                                    for reviewer in mr["reviewers"]])
+
+            user_is_assignee = user['id'] in assignees_ids_set
+            user_is_reviewer = user['id'] in reviewer_ids_set
+
+            if (user_is_assignee or user_is_reviewer) and not self.gitlab_api.user_has_notes_in_mr(mr=mr, user=user):
+                if user_is_assignee:
+                    logger.debug(
+                        f"User should be removed from mr assignees: {mr['title']}")
+
+                    assignees_ids_set.remove(user['id'])
+
+                    updated_assignees_ids = list(assignees_ids_set)
+
+                    result["assignee_ids"] = updated_assignees_ids
+
+                if user_is_reviewer:
+                    logger.debug(
+                        f"User should be removed from mr reviewers: {mr['title']}")
+
+                    reviewer_ids_set.remove(user['id'])
+
+                    updated_reviewer_ids = list(reviewer_ids_set)
+
+                    result["reviewer_ids"] = updated_reviewer_ids
+
+        return result
+
+    async def check_relevant_mrs_to_unassign_and_send_notification(self, project_ids=[], current_user=None, sent_ids_set=None):
         logger.debug(
             "Checking if user is assigned to not relevant merge requests")
 
         mrs = await self.gitlab_api.get_merge_requests_relevant_to_user(project_ids=project_ids)
 
         for mr in mrs:
-            if len(mr["assignees"]) > 1 or len(mr["reviewers"]) > 1:
-                assignees_ids_set = set([assignee['id']
-                                        for assignee in mr["assignees"]])
-                reviewer_ids_set = set([reviewer["id"]
-                                        for reviewer in mr["reviewers"]])
+            result = self.mr_should_be_unassigned_from(
+                mr=mr, user=current_user)
 
-                user_is_assignee = current_user['id'] in assignees_ids_set
-                user_is_reviewer = current_user['id'] in reviewer_ids_set
-
-                if (user_is_assignee or user_is_reviewer) and not self.gitlab_api.user_has_notes_in_mr(mr=mr, user=current_user):
-                    if user_is_assignee:
-                        logger.debug(
-                            f"Removing current user from mr assignees: {mr['title']}")
-
-                        assignees_ids_set.remove(current_user['id'])
-
-                        updated_assignees_ids = list(assignees_ids_set)
-
-                        await self.gitlab_api.update_mr_assignee_ids(iid=mr["iid"], project_id=mr["project_id"], assignee_ids=updated_assignees_ids)
-
-                    if user_is_reviewer:
-                        logger.debug(
-                            f"Removing current user from mr reviewers: {mr['title']}")
-
-                        reviewer_ids_set.remove(current_user['id'])
-
-                        updated_reviewer_ids = list(reviewer_ids_set)
-
-                        await self.gitlab_api.update_mr_reviewer_ids(iid=mr["iid"], project_id=mr["project_id"], reviewer_ids=updated_reviewer_ids)
-
-                    await self.gitlab_api.unsubscribe_from_mr(iid=mr["iid"], project_id=mr["project_id"])
+            if result and mr["iid"] not in sent_ids_set:
+                await self.telegram_service.ask_to_unassign_from_mr(mr=mr)
+                sent_ids_set.add(mr["iid"])
 
     @retry_on_fail
     async def unassign_from_mrs_loop(self, project_ids=[]):
         current_user = await self.gitlab_api.get_current_user()
 
+        sent_mrs_ids_set = set()
+
         while True:
-            await self.unassign_from_mrs(project_ids=project_ids, current_user=current_user)
+            await self.check_relevant_mrs_to_unassign_and_send_notification(project_ids=project_ids,
+                                                                            current_user=current_user,
+                                                                            sent_ids_set=sent_mrs_ids_set)
             sleep_in_sec = randint(50, 120)
 
             logger.debug(

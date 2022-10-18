@@ -15,10 +15,8 @@ def escape_chars_in_str(input_str='', chars_to_escape=[], escape_with="\\"):
     result = input_str
 
     for char_to_escape in chars_to_escape:
-        print("char_to_escape", char_to_escape)
         result = escape_char_in_str(
             input_str=result, char_to_escape=char_to_escape, escape_with=escape_with)
-        print("result", result)
 
     return result
 

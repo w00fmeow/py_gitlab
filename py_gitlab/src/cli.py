@@ -79,6 +79,7 @@ async def run():
 
         if args.unassign and args.project_ids:
             logger.info("Unassigning user from not relevant merge requests")
+
             tasks.append(orchestrator.unassign_from_mrs_loop(
                 project_ids=args.project_ids))
 
